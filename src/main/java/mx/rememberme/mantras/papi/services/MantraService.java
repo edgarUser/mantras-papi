@@ -5,4 +5,6 @@ import mx.rememberme.mantras.papi.responses.MantraResponse;
 
 public interface MantraService {
 	Single<MantraResponse> getMantraById(int id);
+
+	//Single<Object[]> getMantra();
 }
