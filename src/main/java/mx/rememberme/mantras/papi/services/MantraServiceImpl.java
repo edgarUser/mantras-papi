@@ -1,5 +1,7 @@
 package mx.rememberme.mantras.papi.services;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 
 import io.reactivex.Single;
@@ -18,6 +20,11 @@ public class MantraServiceImpl implements MantraService {
 	@Override
 	public Single<MantraResponse> getMantraById(int id) {
 		return this.mantraAdapter.getMantraById(id);
+	}
+
+	@Override
+	public Single<List<MantraResponse>> getMantra() {
+		return this.mantraAdapter.getMantra();
 	}
 
 }

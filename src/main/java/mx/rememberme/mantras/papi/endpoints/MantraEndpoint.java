@@ -1,5 +1,7 @@
 package mx.rememberme.mantras.papi.endpoints;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +34,42 @@ public class MantraEndpoint {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
+	@Path("mantra")
+	@ManagedAsync
+	public void getMantra(@Suspended final AsyncResponse async) {
+		final List<MantraResponse> response = new ArrayList<MantraResponse>();
+		final CountDownLatch outerLatch = new CountDownLatch(1);
+
+		mantraService.getMantra().subscribe(new SingleObserver<List<MantraResponse>>() {
+			public void onSubscribe(Disposable d) {
+			}
+
+			public void onSuccess(List<MantraResponse> mantraResponse) {
+				logger.debug("mantra response : {}", mantraResponse);
+				response.addAll(mantraResponse);
+				outerLatch.countDown();
+			}
+
+			public void onError(Throwable e) {
+				logger.debug(e);
+				async.resume(e);
+				outerLatch.countDown();
+			}
+		});
+
+		try {
+			if (!outerLatch.await(10, TimeUnit.SECONDS)) {
+				async.resume(new InternalErrorException());
+			}
+		} catch (Exception e) {
+			async.resume(new InternalErrorException());
+		}
+
+		async.resume(response);
+	}
+
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
 	@Path("mantra/{id}")
 	@ManagedAsync
 	public void getMantraById(@Suspended final AsyncResponse async, @PathParam("id") final int id) {
@@ -41,11 +79,9 @@ public class MantraEndpoint {
 
 		mantraService.getMantraById(id).subscribe(new SingleObserver<MantraResponse>() {
 			public void onSubscribe(Disposable d) {
-
 			}
 
 			public void onSuccess(MantraResponse mantraResponse) {
-
 				logger.debug("mantra response : {}", mantraResponse);
 				response.setDesc(mantraResponse.getDesc());
 				response.setWords(mantraResponse.getWords());

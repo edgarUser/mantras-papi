@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,7 +24,33 @@ import mx.rememberme.mantras.papi.responses.MantraResponse;
 public class MantraAdapter {
 
 	private static Logger logger = LogManager.getLogger(MantraAdapter.class);
+
+	private static final String MANTRAS_SAPI_END_POINT = "http://localhost:8085/mantra";
 	private static final String MANTRA_SAPI_END_POINT = "http://localhost:8085/mantra/%d";
+
+	public Single<List<MantraResponse>> getMantra() {
+		return Single.create(new SingleOnSubscribe<List<MantraResponse>>() {
+			public void subscribe(SingleEmitter<List<MantraResponse>> subscriber) {
+				try {
+					String endPoint = String.format(MANTRAS_SAPI_END_POINT);
+					logger.debug("endpoint : {}", endPoint);
+					URL url = new URL(endPoint);
+					HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+					connection.setRequestMethod("GET");
+
+					BufferedReader bf = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+					List<MantraResponse> response = getMantrasResponseFromSapi(bf);
+					subscriber.onSuccess(response);
+				} catch (MantraNotFoundException mnfe) {
+					logger.debug(mnfe);
+					subscriber.onError(mnfe);
+				} catch (Exception e) {
+					logger.debug(e);
+					subscriber.onError(new InternalErrorException());
+				}
+			}
+		});
+	}
 
 	public Single<MantraResponse> getMantraById(int id) {
 		return Single.create(new SingleOnSubscribe<MantraResponse>() {
@@ -46,6 +74,30 @@ public class MantraAdapter {
 				}
 			}
 		});
+	}
+
+	private List<MantraResponse> getMantrasResponseFromSapi(BufferedReader in) throws Exception {
+		String inputLine;
+		StringBuffer response = new StringBuffer();
+		try {
+
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine);
+			}
+
+			in.close();
+			String responseString = response.toString();
+			Gson gson = new Gson();
+
+			MantraResponse[] mantras = gson.fromJson(responseString, MantraResponse[].class);
+			return Arrays.asList(mantras);
+
+		} catch (Exception e) {
+			logger.debug(e);
+			throw new MantraNotFoundException();
+		} finally {
+			in.close();
+		}
 	}
 
 	private MantraResponse readResponseFromMantraResponse(BufferedReader in) throws Exception {
